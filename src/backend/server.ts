@@ -24,7 +24,7 @@ const neonApi = new NeonApi();
 // CORSの設定
 const corsOptions = {
   origin: process.env.REACT_APP_FRONTEND_URL, // フロントエンドのURLを環境変数から取得
-  credentials: true, // クレデンシャルを含むリクエストを許可する
+  method: [],
 };
 // アクセストークン認証(ラッパー関数)
 const initAccessTokenAuth = async (
