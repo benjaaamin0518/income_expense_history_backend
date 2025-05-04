@@ -308,6 +308,7 @@ with
     const { predictions } = await this.getPredictWithGemini(
       await this.getIncomeExpenseHistory(id)
     );
+    console.log(predictions);
     const result = rows.reduce((prev, current, index) => {
       const currentPredict = predictions.findLast(
         (predict) => predict.month == current.month
@@ -431,15 +432,21 @@ with
     const currentDate = new Date();
     const nextMonth = new Date(
       currentDate.getFullYear(),
-      currentDate.getMonth() + 2
+      currentDate.getMonth() + 1
     );
     const twoMonthsAhead = new Date(
       currentDate.getFullYear(),
-      currentDate.getMonth() + 3
+      currentDate.getMonth() + 2
     );
 
-    const month1 = nextMonth.toISOString().slice(0, 7);
-    const month2 = twoMonthsAhead.toISOString().slice(0, 7);
+    const month1 =
+      nextMonth.getFullYear() +
+      "-" +
+      ("00" + (nextMonth.getMonth() + 1)).slice(-2);
+    const month2 =
+      twoMonthsAhead.getFullYear() +
+      "-" +
+      ("00" + (twoMonthsAhead.getMonth() + 1)).slice(-2);
     console.log(month1, month2);
     const prompt = `
     Analyze the following financial transaction history and predict income and debt for the next 2 months(${month1} and ${month2}).
