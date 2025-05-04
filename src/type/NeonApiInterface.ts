@@ -33,6 +33,14 @@ export type monthlyReport = {
   incomePrediction: number;
   expensePrediction: number;
 }[];
+export type predict = {
+  month: string;
+  income: number;
+  debt: number;
+};
+export type predictions = {
+  predictions: predict[];
+};
 export type incomeExpenseHistory = {
   price: number;
   date: string;
@@ -72,6 +80,13 @@ export type getIncomeExpenseHistoryApiRequest =
 export type getIncomeExpenseHistoryResponse =
   | {
       result: incomeExpenseHistory[];
+      status: number;
+    }
+  | { error: string; status: number };
+export type getPredictApiResponse = Response<getPredictResponse>;
+export type getPredictResponse =
+  | {
+      result: predictions | null;
       status: number;
     }
   | { error: string; status: number };
