@@ -428,9 +428,21 @@ with
     }
 
     const model = this.genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const currentDate = new Date();
+    const nextMonth = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() + 2
+    );
+    const twoMonthsAhead = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() + 3
+    );
 
+    const month1 = nextMonth.toISOString().slice(0, 7);
+    const month2 = twoMonthsAhead.toISOString().slice(0, 7);
+    console.log(month1, month2);
     const prompt = `
-    Analyze the following financial transaction history and predict income and debt for the next 2 months.
+    Analyze the following financial transaction history and predict income and debt for the next 2 months(${month1} and ${month2}).
     Return ONLY valid JSON without any explanatory text or additional content.
 
     Input Data Format:
@@ -450,7 +462,7 @@ with
     6. Consider economic factors that might influence future spending
 
     Return ONLY valid JSON in the following format without any explanations or additional text:
-    {"predictions":[{"month":"YYYY-MM","income":number,"debt":number},{"month":"YYYY-MM","income":number,"debt":number}]}
+    {"predictions":[{"month":"${month1}","income":number,"debt":number},{"month":"${month2}","income":number,"debt":number}]}
 
     Prediction Criteria:
     - Historical spending patterns
