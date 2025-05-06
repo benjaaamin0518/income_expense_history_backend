@@ -431,8 +431,10 @@ with
         updateObj.price,
         updateObj.type,
         updateObj.description,
-        updateObj.mode == "borrowing" ? userId : updateObj.borrowed_user_id,
-        updateObj.mode == "borrowing" ? updateObj.borrowed_user_id : userId,
+        (updateObj.mode == "borrowing" ? userId : updateObj.borrowed_user_id) ||
+          null,
+        (updateObj.mode == "borrowing" ? updateObj.borrowed_user_id : userId) ||
+          null,
       ]
     );
     if (rows.length === 0) {
