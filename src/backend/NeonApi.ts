@@ -632,21 +632,48 @@ with
       return { predictions: [] };
     }
   }
-  public async getInvitations() {
+  public async getInvitation(code: string) {
     const query = {
       text: `
         SELECT
-          *
+          user_invitations.id AS user_invitations_id
+          , user_invitations.invitation_code AS user_invitations_invitation_code
+          , user_invitations.expires_at AS user_invitations_expires_at
+          , user_invitations.created_at AS user_invitations_created_at
+          , user_invitations.borrowed_user_id AS user_invitations_borrowed_user_id
+          , borrowed_users.id AS borrowed_users_id
+          , borrowed_users.name AS borrowed_users_name
+          , borrowed_users.email AS borrowed_users_email
+          , borrowed_users.status AS borrowed_users_status
+          , borrowed_users.created_at AS borrowed_users_created_at
         FROM
           user_invitations
-        order by created_at desc;
+          INNER JOIN
+            borrowed_users
+          ON borrowed_users.id = user_invitations.borrowed_user_id
+        WHERE
+          user_invitations.invitation_code = $1
+        order by user_invitations.created_at desc;
       `,
     };
-    const { rows } = await this.pool.query(query);
-    const result = rows.reduce((prev, current) => {
-      prev.push(current);
-      return prev;
-    }, []);
+    const { rows } = await this.pool.query(query, [code]);
+    if (rows.length !== 1) throw { message: "error invitation" };
+    const result = {
+      invitation: {
+        id: rows[0].user_invitations_id,
+        invitation_code: rows[0].user_invitations_invitation_code,
+        expires_at: rows[0].user_invitations_expires_at,
+        created_at: rows[0].user_invitations_created_at,
+        borrowed_user_id: rows[0].user_invitations_borrowed_user_id,
+      },
+      user: {
+        id: rows[0].borrowed_users_id,
+        name: rows[0].borrowed_users_name,
+        email: rows[0].borrowed_users_email,
+        status: rows[0].borrowed_users_status,
+        created_at: rows[0].borrowed_users_created_at,
+      },
+    };
     return result;
   }
   /**

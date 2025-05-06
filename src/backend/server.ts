@@ -244,14 +244,11 @@ app.post(
   }
 );
 app.post(
-  "/api/v1/get/invitations",
+  "/api/v1/get/invitation",
   async (req: getInvitationsApiRequest, res: getInvitationsApiResponse) => {
     try {
-      const { userInfo } = req.body;
-      const { id: userId, borrowedUserId } = await initAccessTokenAuth(
-        userInfo
-      );
-      const result = await neonApi.getInvitations();
+      const { code } = req.body;
+      const result = await neonApi.getInvitation(code);
       // ユーザー情報とトークンをクライアントに返す
       res.status(200).json({
         status: 200, // ステータスコード
