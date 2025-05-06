@@ -8,16 +8,28 @@ import {
   accessTokenAuthRequest,
   deleteIncomeExpenseHistoryApiRequest,
   deleteIncomeExpenseHistoryApiResponse,
+  getBorrowedUsersApiRequest,
+  getBorrowedUsersApiResponse,
   getIncomeExpenseHistoryApiRequest,
   getIncomeExpenseHistoryApiResponse,
+  getInvitationsApiRequest,
+  getInvitationsApiResponse,
   getMonthlyReportApiRequest,
   getMonthlyReportApiResponse,
   getMonthlyReportRequest,
   getMonthlyReportResponse,
   getPredictApiResponse,
   getPredictResponse,
+  insertBorrowedUserApiRequest,
+  insertBorrowedUserApiResponse,
   insertIncomeExpenseHistoryApiRequest,
   insertIncomeExpenseHistoryApiResponse,
+  insertInvitationApiRequest,
+  insertInvitationApiResponse,
+  insertUserInfoApiRequest,
+  insertUserInfoApiResponse,
+  insertUserInfoRequest,
+  insertUserInfoResponse,
   loginAuthApiRequest,
   loginAuthApiResponse,
 } from "../type/NeonApiInterface";
@@ -66,9 +78,13 @@ app.post(
   "/api/v1/get/monthlyReport",
   async (req: getMonthlyReportApiRequest, res: getMonthlyReportApiResponse) => {
     try {
-      const { userInfo } = req.body;
-      const userId = await initAccessTokenAuth(userInfo);
-      const result = await neonApi.getMonthlyReport(userId);
+      const { userInfo, borrowed_user_id, mode } = req.body;
+      const { id, borrowedUserId } = await initAccessTokenAuth(userInfo);
+      const result = await neonApi.getMonthlyReport(
+        borrowedUserId,
+        borrowed_user_id,
+        mode
+      );
       // ユーザー情報とトークンをクライアントに返す
       res.status(200).json({
         status: 200, // ステータスコード
@@ -92,8 +108,13 @@ app.post(
   ) => {
     try {
       const { userInfo, ...left } = req.body;
-      const userId = await initAccessTokenAuth(userInfo);
-      const result = await neonApi.insertIncomeExpenseHistory(userId, left);
+      const { id: userId, borrowedUserId } = await initAccessTokenAuth(
+        userInfo
+      );
+      const result = await neonApi.insertIncomeExpenseHistory(
+        borrowedUserId,
+        left
+      );
       // ユーザー情報とトークンをクライアントに返す
       res.status(200).json({
         status: 200, // ステータスコード
@@ -117,8 +138,13 @@ app.post(
   ) => {
     try {
       const { userInfo, id } = req.body;
-      const userId = await initAccessTokenAuth(userInfo);
-      const result = await neonApi.deleteIncomeExpenseHistory(userId, id);
+      const { id: userId, borrowedUserId } = await initAccessTokenAuth(
+        userInfo
+      );
+      const result = await neonApi.deleteIncomeExpenseHistory(
+        borrowedUserId,
+        id
+      );
       // ユーザー情報とトークンをクライアントに返す
       res.status(200).json({
         status: 200, // ステータスコード
@@ -161,9 +187,15 @@ app.post(
     res: getIncomeExpenseHistoryApiResponse
   ) => {
     try {
-      const { userInfo } = req.body;
-      const userId = await initAccessTokenAuth(userInfo);
-      const result = await neonApi.getIncomeExpenseHistory(userId);
+      const { userInfo, borrowed_user_id, mode } = req.body;
+      const { id: userId, borrowedUserId } = await initAccessTokenAuth(
+        userInfo
+      );
+      const result = await neonApi.getIncomeExpenseHistory(
+        borrowedUserId,
+        borrowed_user_id,
+        mode
+      );
       // ユーザー情報とトークンをクライアントに返す
       res.status(200).json({
         status: 200, // ステータスコード
@@ -186,14 +218,139 @@ app.post(
     res: getPredictApiResponse
   ) => {
     try {
-      const { userInfo } = req.body;
-      const userId = await initAccessTokenAuth(userInfo);
-      const result = await neonApi.getIncomeExpenseHistory(userId);
+      const { userInfo, borrowed_user_id, mode } = req.body;
+      const { id: userId, borrowedUserId } = await initAccessTokenAuth(
+        userInfo
+      );
+      const result = await neonApi.getIncomeExpenseHistory(
+        borrowedUserId,
+        borrowed_user_id,
+        mode
+      );
       const geminiResult = await neonApi.getPredictWithGemini(result);
       // ユーザー情報とトークンをクライアントに返す
       res.status(200).json({
         status: 200, // ステータスコード
         result: geminiResult,
+      });
+      return;
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message,
+        status: 500, // ステータスコード
+      });
+      return;
+    }
+  }
+);
+app.post(
+  "/api/v1/get/invitations",
+  async (req: getInvitationsApiRequest, res: getInvitationsApiResponse) => {
+    try {
+      const { userInfo } = req.body;
+      const { id: userId, borrowedUserId } = await initAccessTokenAuth(
+        userInfo
+      );
+      const result = await neonApi.getInvitations();
+      // ユーザー情報とトークンをクライアントに返す
+      res.status(200).json({
+        status: 200, // ステータスコード
+        result,
+      });
+      return;
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message,
+        status: 500, // ステータスコード
+      });
+      return;
+    }
+  }
+);
+app.post(
+  "/api/v1/post/insertInvitation",
+  async (req: insertInvitationApiRequest, res: insertInvitationApiResponse) => {
+    try {
+      const { userInfo, ...left } = req.body;
+      const { id: userId, borrowedUserId } = await initAccessTokenAuth(
+        userInfo
+      );
+      const result = await neonApi.insertInvitation(left);
+      // ユーザー情報とトークンをクライアントに返す
+      res.status(200).json({
+        status: 200, // ステータスコード
+        result,
+      });
+      return;
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message,
+        status: 500, // ステータスコード
+      });
+      return;
+    }
+  }
+);
+app.post(
+  "/api/v1/get/borrowedUsers",
+  async (req: getBorrowedUsersApiRequest, res: getBorrowedUsersApiResponse) => {
+    try {
+      const { userInfo } = req.body;
+      const { id: userId, borrowedUserId } = await initAccessTokenAuth(
+        userInfo
+      );
+      const result = await neonApi.getBorrowedUsers(borrowedUserId);
+      // ユーザー情報とトークンをクライアントに返す
+      res.status(200).json({
+        status: 200, // ステータスコード
+        result,
+      });
+      return;
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message,
+        status: 500, // ステータスコード
+      });
+      return;
+    }
+  }
+);
+app.post(
+  "/api/v1/post/insertBorrowedUser",
+  async (
+    req: insertBorrowedUserApiRequest,
+    res: insertBorrowedUserApiResponse
+  ) => {
+    try {
+      const { userInfo, ...left } = req.body;
+      const { id: userId, borrowedUserId } = await initAccessTokenAuth(
+        userInfo
+      );
+      const result = await neonApi.insertBorrowedUser(left);
+      // ユーザー情報とトークンをクライアントに返す
+      res.status(200).json({
+        status: 200, // ステータスコード
+        result,
+      });
+      return;
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message,
+        status: 500, // ステータスコード
+      });
+      return;
+    }
+  }
+);
+app.post(
+  "/api/v1/post/insertUserInfo",
+  async (req: insertUserInfoApiRequest, res: insertUserInfoApiResponse) => {
+    try {
+      const result = await neonApi.insertUserInfo(req.body);
+      // ユーザー情報とトークンをクライアントに返す
+      res.status(200).json({
+        status: 200, // ステータスコード
+        result,
       });
       return;
     } catch (error: any) {

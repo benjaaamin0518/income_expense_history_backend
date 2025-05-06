@@ -2,10 +2,15 @@ import { Pool } from "pg";
 import {
   accessTokenAuthRequest,
   incomeExpenseHistory,
+  insertBorrowedUserApiRequest,
+  insertBorrowedUserRequest,
   insertIncomeExpenseHistoryRequest,
+  insertInvitationRequest,
+  insertUserInfoRequest,
   loginAuthRequest,
   predict,
   predictions,
+  TransactionMode,
 } from "../type/NeonApiInterface";
 import { createHash, randomBytes } from "crypto";
 import * as jwt from "jsonwebtoken";
@@ -46,9 +51,14 @@ export class NeonApi {
     // リクエスト.ユーザーIDとハッシュ値(user_info.password)と一致するユーザー情報を返却する。
     const query = `
         SELECT
-            *
+            user_info.id AS id
+            , borrowed_users.id AS borrowed_user_id
         FROM
             user_info
+            INNER JOIN
+              borrowed_users
+            ON borrowed_users.email = user_info.user_id
+            AND borrowed_users.status = 'active'
         WHERE
             password = $1
             AND user_id = $2;
@@ -73,9 +83,12 @@ export class NeonApi {
     if (updateRows.length === 0)
       throw { message: "ログイン認証に失敗しました。" };
     const id = updateRows[0]["id"];
-    if (!id) throw { message: "ログイン認証に失敗しました。" };
+    const borrowedUserId = rows[0]["borrowed_user_id"];
+    if (!id || !borrowedUserId)
+      throw { message: "ログイン認証に失敗しました。" };
     const peyload = {
       id: id,
+      borrowedUserId,
       accessToken: newAccessToken,
     };
     response.accessToken = jwt.sign(peyload, this.salt || "", this.config);
@@ -90,11 +103,17 @@ export class NeonApi {
     accessToken,
   }: accessTokenAuthRequest["userInfo"]) {
     // レスポンス内容(初期値)
-    let response: "success" | "error" | string = "error";
-    let { id, accessToken: decodedAccessToken } = jwt.verify(
-      accessToken,
-      this.salt || ""
-    ) as { id: string; accessToken: string };
+    let response: "success" | "error" | { id: string; borrowedUserId: number } =
+      "error";
+    let {
+      id,
+      accessToken: decodedAccessToken,
+      borrowedUserId,
+    } = jwt.verify(accessToken, this.salt || "") as {
+      id: string;
+      accessToken: string;
+      borrowedUserId: number;
+    };
     // ユーザーID、アクセストークンが一致するユーザー情報を取得する。
     const { rows } = await this.pool.query(
       `SELECT * FROM user_info WHERE id = $1 AND access_token = $2;`,
@@ -104,10 +123,14 @@ export class NeonApi {
       response = "error";
       return response;
     }
-    response = id;
+    response = { id, borrowedUserId };
     return response;
   }
-  public async getMonthlyReport(id: string) {
+  public async getMonthlyReport(
+    id: number,
+    borrowedUserId: number,
+    mode: TransactionMode
+  ) {
     //     const query = {
     //       text: `
     // with
@@ -256,7 +279,19 @@ with
           time_ranges
           left join income_expense_history on income_expense_history.created_at < (from_date + interval '1' month)
           and income_expense_history.type = '0'
-          and income_expense_history.user_id = $1
+          ${
+            mode == "borrowing" || borrowedUserId
+              ? "and income_expense_history.user_id = $1"
+              : ""
+          }
+          ${
+            mode == "borrowing"
+              ? borrowedUserId
+                ? "and income_expense_history.borrowed_user_id =" +
+                  borrowedUserId
+                : ""
+              : "and income_expense_history.borrowed_user_id =" + id
+          } 
         group by
           from_date
         order by
@@ -270,7 +305,19 @@ with
           time_ranges
           left join income_expense_history on income_expense_history.created_at < (from_date + interval '1' month)
           and income_expense_history.type = '1'
-          and income_expense_history.user_id = $1
+          ${
+            mode == "borrowing" || borrowedUserId
+              ? "and income_expense_history.user_id = $1"
+              : ""
+          }
+          ${
+            mode == "borrowing"
+              ? borrowedUserId
+                ? "and income_expense_history.borrowed_user_id =" +
+                  borrowedUserId
+                : ""
+              : "and income_expense_history.borrowed_user_id =" + id
+          } 
         group by
           from_date
         order by
@@ -304,9 +351,12 @@ with
 );
       `,
     };
-    const { rows } = await this.pool.query(query, [id]);
+    const { rows } = await this.pool.query(
+      query,
+      mode == "borrowing" ? [id] : borrowedUserId ? [borrowedUserId] : []
+    );
     const { predictions } = await this.getPredictWithGemini(
-      await this.getIncomeExpenseHistory(id)
+      await this.getIncomeExpenseHistory(id, borrowedUserId, mode)
     );
     console.log(predictions);
     const result = rows.reduce((prev, current, index) => {
@@ -348,13 +398,13 @@ with
    * @param param0 userId,削除に必要な情報(id)
    * @returns　"success" or "error"
    */
-  public async deleteIncomeExpenseHistory(userId: string, id: number) {
+  public async deleteIncomeExpenseHistory(userId: number, id: number) {
     // レスポンス内容(初期値)
     let response: "success" | "error" = "success";
     // いんんさーとを行う
     const { rows } = await this.pool.query(
-      `DELETE FROM "public"."income_expense_history" WHERE user_id = $1 AND id = $2 RETURNING id;`,
-      [userId, id]
+      `DELETE FROM "public"."income_expense_history" WHERE id = $1 RETURNING id;`,
+      [id]
     );
     if (rows.length === 0) {
       response = "error";
@@ -367,20 +417,22 @@ with
    * @returns　"success" or "error"
    */
   public async insertIncomeExpenseHistory(
-    userId: string,
+    userId: number,
     updateObj: Omit<insertIncomeExpenseHistoryRequest, "userInfo">
   ) {
     // レスポンス内容(初期値)
     let response: "success" | "error" = "success";
     // いんんさーとを行う
     const { rows } = await this.pool.query(
-      `INSERT INTO "public"."income_expense_history" ( "created_at", "price", "type", "description", "user_id") VALUES ( $1, $2, $3, $4, $5) RETURNING id;`,
+      `INSERT INTO "public"."income_expense_history" ( "created_at", "price", "type", "description", "user_id", "borrowed_user_id"
+      ) VALUES ( $1, $2, $3, $4, $5, $6) RETURNING id;`,
       [
         updateObj.date,
         updateObj.price,
         updateObj.type,
         updateObj.description,
-        userId,
+        updateObj.mode == "borrowing" ? userId : updateObj.borrowed_user_id,
+        updateObj.mode == "borrowing" ? updateObj.borrowed_user_id : userId,
       ]
     );
     if (rows.length === 0) {
@@ -388,25 +440,55 @@ with
     }
     return response;
   }
-  public async getIncomeExpenseHistory(id: string) {
+  public async getIncomeExpenseHistory(
+    id: number,
+    borrowedUserId: number,
+    mode: string
+  ) {
     const query = {
       text: `
         SELECT
-          *
+          income_expense_history.price
+          , income_expense_history.type
+          , income_expense_history.description
+          , income_expense_history.created_at
+          , income_expense_history.borrowed_user_id
+          , income_expense_history.id
+          , borrowed_users.name AS borrowed_user_name
         FROM
           income_expense_history
+            LEFT JOIN borrowed_users ON borrowed_users.id = ${
+              mode == "borrowing"
+                ? "income_expense_history.borrowed_user_id"
+                : "income_expense_history.user_id"
+            }
         where
-          user_id = $1
-        order by created_at desc;
+          ${mode == "borrowing" || borrowedUserId ? "user_id = $1" : ""}
+          ${
+            mode == "borrowing"
+              ? borrowedUserId
+                ? "and income_expense_history.borrowed_user_id =" +
+                  borrowedUserId
+                : ""
+              : borrowedUserId
+              ? "and income_expense_history.borrowed_user_id =" + id
+              : "income_expense_history.borrowed_user_id =" + id
+          } 
+        order by income_expense_history.created_at desc;
       `,
     };
-    const { rows } = await this.pool.query(query, [id]);
+    const { rows } = await this.pool.query(
+      query,
+      mode == "borrowing" ? [id] : borrowedUserId ? [borrowedUserId] : []
+    );
     const result = rows.reduce((prev, current) => {
       prev.push({
         price: Number(current.price),
         type: current.type,
         description: current.description,
         date: current.created_at,
+        borrowed_user_id: current.borrowed_user_id,
+        borrowed_user_name: current.borrowed_user_name,
         id: current.id,
       });
       return prev;
@@ -549,5 +631,142 @@ with
       console.error("Gemini API error:", error);
       return { predictions: [] };
     }
+  }
+  public async getInvitations() {
+    const query = {
+      text: `
+        SELECT
+          *
+        FROM
+          user_invitations
+        order by created_at desc;
+      `,
+    };
+    const { rows } = await this.pool.query(query);
+    const result = rows.reduce((prev, current) => {
+      prev.push(current);
+      return prev;
+    }, []);
+    return result;
+  }
+  /**
+   *
+   * @param param0 userId,作成に必要な情報(price, description, created_at)
+   * @returns　"success" or "error"
+   */
+  public async insertInvitation(
+    updateObj: Omit<insertInvitationRequest, "userInfo">
+  ) {
+    // レスポンス内容(初期値)
+    let response: "success" | "error" = "success";
+    // いんんさーとを行う
+    const { rows } = await this.pool.query(
+      `INSERT INTO "public"."user_invitations" ( "created_at", "invitation_code", "expires_at", "borrowed_user_id") VALUES ( $1, $2, $3, $4) RETURNING id;`,
+      [
+        updateObj.created_at,
+        updateObj.invitation_code,
+        updateObj.expires_at,
+        updateObj.borrowed_user_id,
+      ]
+    );
+    if (rows.length === 0) {
+      response = "error";
+    }
+    return response;
+  }
+  public async getBorrowedUsers(borrowedUserId: number) {
+    const query = {
+      text: `
+        SELECT
+          *
+        FROM
+          borrowed_users
+        WHERE
+          id != ${borrowedUserId}
+        order by created_at desc;
+      `,
+    };
+    const { rows } = await this.pool.query(query);
+    const result = rows.reduce((prev, current) => {
+      prev.push(current);
+      return prev;
+    }, []);
+    return result;
+  }
+  /**
+   *
+   * @param param0 userId,作成に必要な情報(price, description, created_at)
+   * @returns　"success" or "error"
+   */
+  public async insertBorrowedUser(
+    updateObj: Omit<insertBorrowedUserRequest, "userInfo">
+  ) {
+    // レスポンス内容(初期値)
+    let response: "success" | "error" = "success";
+    // いんんさーとを行う
+    const { rows } = await this.pool.query(
+      `INSERT INTO "public"."borrowed_users" ( "created_at", "name", "email", "status") VALUES ( $1, $2, $3, $4) RETURNING id;`,
+      [updateObj.created_at, updateObj.name, updateObj.email, updateObj.status]
+    );
+    if (rows.length === 0) {
+      response = "error";
+    }
+    return response;
+  }
+  /**
+   *
+   * @param param0 userId,作成に必要な情報(price, description, created_at)
+   * @returns　"success" or "error"
+   */
+  public async insertUserInfo(updateObj: insertUserInfoRequest) {
+    // レスポンス内容(初期値)
+    let response: "success" | "error" = "success";
+    const query = {
+      text: `
+        SELECT
+          *
+        FROM
+          user_invitations
+        WHERE
+          invitation_code = $1
+          AND expires_at >= CURRENT_TIMESTAMP
+        order by created_at desc;
+      `,
+    };
+    const { rows: invitationRows } = await this.pool.query(query, [
+      updateObj.code,
+    ]);
+    if (invitationRows.length !== 1) {
+      throw {
+        message:
+          "招待コードが有効期限切れのため、再度招待QRコードを発行してからお試しください。",
+      };
+    }
+
+    // いんんさーとを行う
+    const hashPassword = createHash("sha256")
+      .update(updateObj.password + this.salt)
+      .digest("hex");
+    const { rows: insertRows } = await this.pool.query(
+      `INSERT INTO "public"."user_info" ( "user_id", "password") VALUES ( $1, $2) RETURNING id;`,
+      [updateObj.email, hashPassword]
+    );
+    if (insertRows.length === 0) {
+      throw {
+        message: "ユーザー登録に失敗しました。",
+      };
+    }
+    await this.pool.query("COMMIT");
+
+    const { rows } = await this.pool.query(
+      `UPDATE borrowed_users SET status = 'active', email = $1 FROM user_invitations WHERE user_invitations.invitation_code = $2 AND borrowed_users.id = user_invitations.borrowed_user_id RETURNING borrowed_users.id`,
+      [updateObj.email, updateObj.code]
+    );
+    if (rows.length === 0) {
+      throw {
+        message: "ユーザー登録に失敗しました。",
+      };
+    }
+    return response;
   }
 }
