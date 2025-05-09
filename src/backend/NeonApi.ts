@@ -371,9 +371,9 @@ with
       const incomePredict = currentPredict
         ? prevPredict
           ? Number(prevPredict.incomePrediction) == 0
-            ? currentPredict.income + Number(prevPredict.income)
-            : currentPredict.income + Number(prevPredict.incomePrediction)
-          : currentPredict.income + Number(current.income_prediction)
+            ? currentPredict.repayment + Number(prevPredict.income)
+            : currentPredict.repayment + Number(prevPredict.incomePrediction)
+          : currentPredict.repayment + Number(current.income_prediction)
         : Number(current.income_prediction);
       const expensePredict = currentPredict
         ? prevPredict
@@ -388,6 +388,7 @@ with
         expense: Number(current.sum_expense),
         incomePrediction: incomePredict,
         expensePrediction: expensePredict,
+        reasoning: currentPredict?.reasoning,
       });
       return prev;
     }, []);
@@ -533,12 +534,13 @@ with
       ("00" + (twoMonthsAhead.getMonth() + 1)).slice(-2);
     console.log(month1, month2);
     const prompt = `
-    Analyze the following financial transaction history and predict income and debt for the next 2 months(${month1} and ${month2}).
+    Analyze the following financial transaction history and predict repayment and debt for the next 2 months(${month1} and ${month2}).
     Return ONLY valid JSON without any explanatory text or additional content.
+    Provide both predictions and a detailed explanation of the overall prediction rationale.
 
     Input Data Format:
     - date: Transaction date
-    - type: "0" = Income, "1" = Debt
+    - type: "0" = Repayment, "1" = Debt
     - price: Amount
 
     Historical Data:
@@ -546,23 +548,40 @@ with
 
     Analysis Requirements:
     1. Identify spending patterns and trends
-    2. Consider seasonal variations in income and debt
-    3. Analyze recurring payments and debt cycles
+    2. Consider seasonal variations in repayment and debt
+    3. Analyze repayment and debt cycles
     4. Weight recent data more heavily in predictions
     5. Exclude outliers that might affect prediction accuracy
     6. Consider economic factors that might influence future spending
 
     Return ONLY valid JSON in the following format without any explanations or additional text:
-    {"predictions":[{"month":"${month1}","income":number,"debt":number},{"month":"${month2}","income":number,"debt":number}]}
+    {
+      "predictions": [
+        {
+          "month": "${month1}",
+          "repayment": number,
+          "debt": number,
+          "reasoning": "Detailed explanation of the predictions in Japanese"
+        },
+        {
+          "month": "${month2}",
+          "repayment": number,
+          "debt": number,
+          "reasoning": "Detailed explanation of the predictions in Japanese"
+        }
+      ]
+    }
 
     Prediction Criteria:
     - Historical spending patterns
     - Seasonal trends
     - Recent behavior changes
-    - Recurring payment cycles
+    - Repayment cycles
     - Debt accumulation rates
 
-    Note: Return ONLY valid JSON. Do not include any comments or explanations.
+    Note:
+    - Return ONLY valid JSON. Do not include any comments or explanations.
+    - Provide clear and concise explanations in Japanese for the repayment and debt predictions.
     `;
 
     try {
@@ -593,31 +612,35 @@ with
       for (const prediction of predictions) {
         prediction.forEach((value) => {
           resultMap.set(
-            value.month + "-income",
-            resultMap.get(value.month + "-income")
-              ? resultMap.get(value.month + "-income") + value.income
-              : 0 + value.income
+            value.month + "-repayment",
+            resultMap.get(value.month + "-repayment")
+              ? resultMap.get(value.month + "-repayment") + value.repayment
+              : 0 + value.repayment
           );
+          resultMap.set(value.month + "-reasoning", value.reasoning);
+
           resultMap.set(
             value.month + "-debt",
             resultMap.get(value.month + "-debt")
               ? resultMap.get(value.month + "-debt") + value.debt
               : 0 + value.debt
           );
-          console.log(resultMap.get(value.month + "-income"));
+          console.log(resultMap.get(value.month + "-repayment"));
           console.log(resultMap.get(value.month + "-debt"));
         });
       }
       console.log(resultMap);
       const averagedPredictions: predictions = {
         predictions: monthList.map((month, monthIndex) => {
-          const income = resultMap.get(month + "-income") / predictions.length;
+          const repayment =
+            resultMap.get(month + "-repayment") / predictions.length;
           const debt = resultMap.get(month + "-debt") / predictions.length;
-
+          const reasoning = resultMap.get(month + "-reasoning");
           return {
             month,
-            income: Math.round(income),
+            repayment: Math.round(repayment),
             debt: Math.round(debt),
+            reasoning,
           };
         }),
       };
