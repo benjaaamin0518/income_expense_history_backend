@@ -392,6 +392,19 @@ with
       });
       return prev;
     }, []);
+    for (const prediction of predictions) {
+      await this.pool.query(
+        `INSERT INTO "public"."predictions" ( "created_at", "user_id", "month", "income", "expense", "reasoning", "target_user_id") VALUES (CURRENT_TIMESTAMP, $1, TO_DATE($2 || '-01', 'YYYY-MM-DD'), $3, $4, $5, $6);`,
+        [
+          id,
+          prediction.month,
+          prediction.repayment,
+          prediction.debt,
+          prediction.reasoning,
+          borrowedUserId,
+        ]
+      );
+    }
     return result;
   }
   /**
@@ -730,11 +743,19 @@ with
     const query = {
       text: `
         SELECT
-          *
+          borrowed_users.id
+          , borrowed_users.name
+          , borrowed_users.email
+          , borrowed_users.status
+          , borrowed_users.created_at
         FROM
           borrowed_users
+        INNER JOIN
+            user_permissions
+          ON user_permissions.user_id = ${borrowedUserId}
+          AND user_permissions.target_user_id = borrowed_users.id
         WHERE
-          id != ${borrowedUserId}
+          borrowed_users.id != ${borrowedUserId}
         order by created_at desc;
       `,
     };
@@ -751,18 +772,46 @@ with
    * @returns　"success" or "error"
    */
   public async insertBorrowedUser(
+    borrowedUserId: number,
     updateObj: Omit<insertBorrowedUserRequest, "userInfo">
   ) {
     // レスポンス内容(初期値)
     let response: "success" | "error" = "success";
     // いんんさーとを行う
     const { rows } = await this.pool.query(
-      `INSERT INTO "public"."borrowed_users" ( "created_at", "name", "email", "status") VALUES ( $1, $2, $3, $4) RETURNING id;`,
+      `INSERT INTO "public"."borrowed_users" ( "created_at", "name", "email", "status") SELECT $1, $2, $3, $4 WHERE NOT EXISTS(SELECT 1 FROM "public"."borrowed_users" WHERE email = $3) RETURNING id;`,
       [updateObj.created_at, updateObj.name, updateObj.email, updateObj.status]
     );
+    let targetUserId: number | null = null;
     if (rows.length === 0) {
       response = "error";
+      const { rows: targetUserObj } = await this.pool.query(
+        `SELECT id FROM "public"."borrowed_users" WHERE email = $1`,
+        [updateObj.email]
+      );
+      if (targetUserObj.length === 0) return response;
+      targetUserId = targetUserObj[0]["id"];
+      if (targetUserId === borrowedUserId) return response;
+    } else {
+      targetUserId = rows[0]["id"];
     }
+    const { rows: permissionObj } = await this.pool.query(
+      `INSERT INTO "public"."user_permissions" ( "created_at", "user_id", "target_user_id") SELECT $1, $2, $3 WHERE NOT EXISTS(SELECT 1 FROM "public"."user_permissions" WHERE target_user_id = $3 AND user_id = $2) RETURNING id;`,
+      [updateObj.created_at, borrowedUserId, targetUserId]
+    );
+    if (permissionObj.length === 0) {
+      response = "error";
+      return response;
+    }
+    const { rows: otherPermissionObj } = await this.pool.query(
+      `INSERT INTO "public"."user_permissions" ( "created_at", "user_id", "target_user_id") SELECT $1, $2, $3 WHERE NOT EXISTS(SELECT 1 FROM "public"."user_permissions" WHERE target_user_id = $3 AND user_id = $2) RETURNING id;`,
+      [updateObj.created_at, targetUserId, borrowedUserId]
+    );
+    if (otherPermissionObj.length === 0) {
+      response = "error";
+      return response;
+    }
+    response = "success";
     return response;
   }
   /**

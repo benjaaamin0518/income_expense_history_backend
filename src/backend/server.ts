@@ -323,7 +323,7 @@ app.post(
       const { id: userId, borrowedUserId } = await initAccessTokenAuth(
         userInfo
       );
-      const result = await neonApi.insertBorrowedUser(left);
+      const result = await neonApi.insertBorrowedUser(borrowedUserId, left);
       // ユーザー情報とトークンをクライアントに返す
       res.status(200).json({
         status: 200, // ステータスコード
