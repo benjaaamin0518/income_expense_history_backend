@@ -131,123 +131,125 @@ export class NeonApi {
     borrowedUserId: number,
     mode: TransactionMode
   ) {
-    //     const query = {
-    //       text: `
-    // with
-    //   time_ranges as (
-    //     select
-    //       generate_series as from_date,
-    //       generate_series + '1 month'::interval as to_date
-    //     from
-    //       generate_series(
-    //         (
-    //           date_trunc('month', CURRENT_TIMESTAMP) - interval '12' month
-    //         ),
-    //         date_trunc('month', CURRENT_TIMESTAMP) + interval '2' month,
-    //         '1 month'
-    //       )
-    //   ),
-    //   monthly_report as (
-    //     select
-    //       from_date,
-    //       coalesce(income_history.sum_income, 0) as sum_income,
-    //       coalesce(expense_history.sum_expense, 0) as sum_expense
-    //     from
-    //       time_ranges
-    //       left join (
-    //         select
-    //           SUM(income_expense_history.price) as sum_income,
-    //           from_date as income_from_date
-    //         from
-    //           time_ranges
-    //           left join income_expense_history on income_expense_history.created_at < (from_date + interval '1' month)
-    //           and income_expense_history.type = '0'
-    //           and income_expense_history.user_id = $1
-    //         group by
-    //           from_date
-    //         order by
-    //           from_date
-    //       ) as income_history on income_history.income_from_date = from_date
-    //       left join (
-    //         select
-    //           SUM(income_expense_history.price) as sum_expense,
-    //           from_date as expense_from_date
-    //         from
-    //           time_ranges
-    //           left join income_expense_history on income_expense_history.created_at < (from_date + interval '1' month)
-    //           and income_expense_history.type = '1'
-    //           and income_expense_history.user_id = $1
-    //         group by
-    //           from_date
-    //         order by
-    //           from_date
-    //       ) as expense_history on expense_history.expense_from_date = from_date
-    //   ) (
-    //     select
-    //       to_char(from_date, 'YYYY-MM') as month,
-    //       case
-    //         when monthly_report.from_date <= date_trunc('month', CURRENT_TIMESTAMP) then sum_income
-    //         else 0
-    //       end as sum_income,
-    //       case
-    //         when monthly_report.from_date <= date_trunc('month', CURRENT_TIMESTAMP) then sum_expense
-    //         else 0
-    //       end as sum_expense,
-    //       case
-    //         when monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP) then (
-    //           avg_monthly_report_income.avg_income * extract(
-    //             month
-    //             from
-    //               AGE (from_date, date_trunc('month', CURRENT_TIMESTAMP))
-    //           )
-    //         ) + sum_income
-    //         else 0
-    //       end as income_prediction,
-    //       case
-    //         when monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP) then (
-    //           avg_monthly_report_expense.avg_expense * extract(
-    //             month
-    //             from
-    //               AGE (from_date, date_trunc('month', CURRENT_TIMESTAMP))
-    //           )
-    //         ) + sum_expense
-    //         else 0
-    //       end as expense_prediction
-    //     from
-    //       monthly_report
-    //       left join (
-    //         select
-    //           coalesce(
-    //             round((max(sum_income) - min(sum_income)) / count(*)),
-    //             0
-    //           ) as avg_income
-    //         from
-    //           monthly_report
-    //         where
-    //           sum_income >= 0
-    //           and monthly_report.from_date <= date_trunc('month', CURRENT_TIMESTAMP)
-    //         limit
-    //           1
-    //       ) as avg_monthly_report_income on monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP)
-    //       left join (
-    //         select
-    //           coalesce(
-    //             round((max(sum_expense) - min(sum_expense)) / count(*)),
-    //             0
-    //           ) as avg_expense
-    //         from
-    //           monthly_report
-    //         where
-    //           sum_expense >= 0
-    //           and monthly_report.from_date <= date_trunc('month', CURRENT_TIMESTAMP)
-    //         limit
-    //           1
-    //       ) as avg_monthly_report_expense on monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP)
-    //     where
-    //       monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP) - interval '4' month
-    // );
-    //       `,
-    //     };
+  /**
+   const query = {
+          text: `
+    with
+      time_ranges as (
+        select
+          generate_series as from_date,
+          generate_series + '1 month'::interval as to_date
+        from
+          generate_series(
+            (
+              date_trunc('month', CURRENT_TIMESTAMP) - interval '12' month
+            ),
+            date_trunc('month', CURRENT_TIMESTAMP) + interval '2' month,
+            '1 month'
+          )
+      ),
+      monthly_report as (
+        select
+          from_date,
+          coalesce(income_history.sum_income, 0) as sum_income,
+          coalesce(expense_history.sum_expense, 0) as sum_expense
+        from
+          time_ranges
+          left join (
+            select
+              SUM(income_expense_history.price) as sum_income,
+              from_date as income_from_date
+            from
+              time_ranges
+              left join income_expense_history on income_expense_history.created_at < (from_date + interval '1' month)
+              and income_expense_history.type = '0'
+              and income_expense_history.user_id = $1
+            group by
+              from_date
+            order by
+              from_date
+          ) as income_history on income_history.income_from_date = from_date
+          left join (
+            select
+              SUM(income_expense_history.price) as sum_expense,
+              from_date as expense_from_date
+            from
+              time_ranges
+              left join income_expense_history on income_expense_history.created_at < (from_date + interval '1' month)
+              and income_expense_history.type = '1'
+              and income_expense_history.user_id = $1
+            group by
+              from_date
+            order by
+              from_date
+          ) as expense_history on expense_history.expense_from_date = from_date
+      ) (
+        select
+          to_char(from_date, 'YYYY-MM') as month,
+          case
+            when monthly_report.from_date <= date_trunc('month', CURRENT_TIMESTAMP) then sum_income
+            else 0
+          end as sum_income,
+          case
+            when monthly_report.from_date <= date_trunc('month', CURRENT_TIMESTAMP) then sum_expense
+            else 0
+          end as sum_expense,
+          case
+            when monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP) then (
+              avg_monthly_report_income.avg_income * extract(
+                month
+                from
+                  AGE (from_date, date_trunc('month', CURRENT_TIMESTAMP))
+              )
+            ) + sum_income
+            else 0
+          end as income_prediction,
+          case
+            when monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP) then (
+              avg_monthly_report_expense.avg_expense * extract(
+                month
+                from
+                  AGE (from_date, date_trunc('month', CURRENT_TIMESTAMP))
+              )
+            ) + sum_expense
+            else 0
+          end as expense_prediction
+        from
+          monthly_report
+          left join (
+            select
+              coalesce(
+                round((max(sum_income) - min(sum_income)) / count(*)),
+                0
+              ) as avg_income
+            from
+              monthly_report
+            where
+              sum_income >= 0
+              and monthly_report.from_date <= date_trunc('month', CURRENT_TIMESTAMP)
+            limit
+              1
+          ) as avg_monthly_report_income on monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP)
+          left join (
+            select
+              coalesce(
+                round((max(sum_expense) - min(sum_expense)) / count(*)),
+                0
+              ) as avg_expense
+            from
+              monthly_report
+            where
+              sum_expense >= 0
+              and monthly_report.from_date <= date_trunc('month', CURRENT_TIMESTAMP)
+            limit
+              1
+          ) as avg_monthly_report_expense on monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP)
+        where
+          monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP) - interval '4' month
+    );
+   `,
+   };
+  */
     const query = {
       text: `
 with
@@ -779,39 +781,66 @@ with
   ) {
     // レスポンス内容(初期値)
     let response: "success" | "error" = "success";
-    // いんんさーとを行う
-    const { rows } = await this.pool.query(
-      `INSERT INTO "public"."borrowed_users" ( "created_at", "name", "email", "status") SELECT $1, $2, $3, $4 WHERE NOT EXISTS(SELECT 1 FROM "public"."borrowed_users" WHERE email = $3) RETURNING id;`,
-      [updateObj.created_at, updateObj.name, updateObj.email, updateObj.status]
-    );
     let targetUserId: number | null = null;
-    if (rows.length === 0) {
-      response = "error";
-      const { rows: targetUserObj } = await this.pool.query(
-        `SELECT id FROM "public"."borrowed_users" WHERE email = $1`,
-        [updateObj.email]
+    await this.pool.query("BEGIN");
+    try {
+      let rows = [];
+      // いんんさーとを行う
+      if(updateObj.mode == "new") {
+         const {rows:insertRows} = await this.pool.query(
+            `INSERT INTO "public"."borrowed_users" ("email", "created_at", "name", "status")
+             SELECT DISTINCT
+             ON ($1) $1, $2, $3, $4
+             WHERE NOT EXISTS (SELECT DISTINCT 1 FROM "public"."borrowed_users" WHERE email = $1) RETURNING id;`,
+            [updateObj.email, updateObj.created_at, updateObj.name, updateObj.status]
+        );
+         rows = insertRows;
+      }
+      if (rows.length === 0) {
+        const {rows: targetUserObj} = updateObj.mode == "exists" ? await this.pool.query(
+            `SELECT id
+             FROM "public"."borrowed_users"
+             WHERE email = $1`,
+            [updateObj.email]
+        ) : {rows:[]};
+        if (targetUserObj.length === 0){
+          throw {
+            message: "借用ユーザー情報登録に失敗しました。",
+          };
+        };
+        targetUserId = targetUserObj[0]["id"];
+        if (targetUserId === borrowedUserId){
+          throw {
+            message: "借用ユーザー情報登録に失敗しました。（自分自身の登録のため）",
+          };
+        }
+      } else {
+        targetUserId = rows[0]["id"];
+      }
+      const {rows: permissionObj} = await this.pool.query(
+          `INSERT INTO "public"."user_permissions" ( "user_id", "created_at", "target_user_id")
+           SELECT DISTINCT ON (user_id) CAST($1 AS integer) AS user_id, $2 AS created_at, $3 AS target_user_id WHERE NOT EXISTS(SELECT 1 FROM "public"."user_permissions" WHERE target_user_id = $3 AND user_id = $1) RETURNING id;`,
+          [borrowedUserId, updateObj.created_at, targetUserId]
       );
-      if (targetUserObj.length === 0) return response;
-      targetUserId = targetUserObj[0]["id"];
-      if (targetUserId === borrowedUserId) return response;
-    } else {
-      targetUserId = rows[0]["id"];
-    }
-    const { rows: permissionObj } = await this.pool.query(
-      `INSERT INTO "public"."user_permissions" ( "created_at", "user_id", "target_user_id") SELECT $1, $2, $3 WHERE NOT EXISTS(SELECT 1 FROM "public"."user_permissions" WHERE target_user_id = $3 AND user_id = $2) RETURNING id;`,
-      [updateObj.created_at, borrowedUserId, targetUserId]
-    );
-    if (permissionObj.length === 0) {
-      response = "error";
-      return response;
-    }
-    const { rows: otherPermissionObj } = await this.pool.query(
-      `INSERT INTO "public"."user_permissions" ( "created_at", "user_id", "target_user_id") SELECT $1, $2, $3 WHERE NOT EXISTS(SELECT 1 FROM "public"."user_permissions" WHERE target_user_id = $3 AND user_id = $2) RETURNING id;`,
-      [updateObj.created_at, targetUserId, borrowedUserId]
-    );
-    if (otherPermissionObj.length === 0) {
-      response = "error";
-      return response;
+      if (permissionObj.length === 0) {
+        throw {
+          message: "借用・貸付許可ユーザー管路情報登録に失敗しました。",
+        };
+      }
+      const {rows: otherPermissionObj} = await this.pool.query(
+          `INSERT INTO "public"."user_permissions" ("user_id", "created_at", "target_user_id")
+           SELECT DISTINCT ON (user_id) CAST($1 AS integer) AS user_id, $2 AS created_at, $3 AS target_user_id WHERE NOT EXISTS(SELECT 1 FROM "public"."user_permissions" WHERE target_user_id = $3 AND user_id = $1) RETURNING id;`,
+          [targetUserId, updateObj.created_at, borrowedUserId]
+      );
+      if (otherPermissionObj.length === 0) {
+        throw {
+          message: "借用・貸付許可ユーザー管路情報（相手）登録に失敗しました。",
+        };
+      }
+      await this.pool.query("COMMIT");
+    }catch (error) {
+      await this.pool.query("ROLLBACK");
+      throw error;
     }
     response = "success";
     return response;
@@ -824,51 +853,91 @@ with
   public async insertUserInfo(updateObj: insertUserInfoRequest) {
     // レスポンス内容(初期値)
     let response: "success" | "error" = "success";
-    const query = {
-      text: `
-        SELECT
-          *
-        FROM
-          user_invitations
-        WHERE
-          invitation_code = $1
-          AND expires_at >= CURRENT_TIMESTAMP
-        order by created_at desc;
-      `,
-    };
-    const { rows: invitationRows } = await this.pool.query(query, [
-      updateObj.code,
-    ]);
-    if (invitationRows.length !== 1) {
-      throw {
-        message:
-          "招待コードが有効期限切れのため、再度招待QRコードを発行してからお試しください。",
-      };
+    await this.pool.query("BEGIN");
+    try {
+      if (updateObj.code) {
+        const query = {
+          text: `
+            SELECT *
+            FROM user_invitations
+            WHERE invitation_code = $1
+              AND expires_at >= CURRENT_TIMESTAMP
+            order by created_at desc;
+          `,
+        };
+        const {rows: invitationRows} = await this.pool.query(query, [
+          updateObj.code,
+        ]);
+        if (invitationRows.length !== 1) {
+          throw {
+            message:
+                "招待コードが有効期限切れのため、再度招待QRコードを発行してからお試しください。",
+          };
+        }
+        // いんんさーとを行う
+        const hashPassword = createHash("sha256")
+            .update(updateObj.password + this.salt)
+            .digest("hex");
+        const {rows: insertRows} = await this.pool.query(
+            `INSERT INTO "public"."user_info" ("user_id", "password")
+             SELECT DISTINCT $1, $2
+             FROM "public"."borrowed_users"
+             WHERE email = ($1)::text RETURNING id;`,
+            [updateObj.email, hashPassword]
+        );
+        if (insertRows.length === 0) {
+          throw {
+            message: "ユーザー登録に失敗しました。",
+          };
+        }
+      }else {
+        // いんんさーとを行う
+        const hashPassword = createHash("sha256")
+            .update(updateObj.password + this.salt)
+            .digest("hex");
+        const {rows: insertRows} = await this.pool.query(
+            `INSERT INTO "public"."user_info" ("user_id", "password")
+             SELECT DISTINCT $1, $2
+             FROM "public"."borrowed_users"
+             WHERE email != $1 RETURNING id;`,
+            [updateObj.email, hashPassword]
+        );
+        if (insertRows.length === 0) {
+          throw {
+            message: "ユーザー登録に失敗しました。",
+          };
+        }
+      }
+      if(updateObj.code) {
+        const {rows} = await this.pool.query(
+            `UPDATE borrowed_users
+             SET status = 'active',
+                 email  = $1 FROM user_invitations
+             WHERE user_invitations.invitation_code = $2
+               AND borrowed_users.id = user_invitations.borrowed_user_id RETURNING borrowed_users.id`,
+            [updateObj.email, updateObj.code]
+        );
+        if (rows.length === 0) {
+          throw {
+            message: "ユーザー登録に失敗しました。",
+          };
+        }
+      }else{
+        const {rows} = await this.pool.query(
+            `INSERT INTO borrowed_users (status, email, name) VALUES ('active', $1, $2) RETURNING id;`,
+            [updateObj.email, updateObj.name]
+        );
+        if (rows.length === 0) {
+          throw {
+            message: "ユーザー登録に失敗しました。",
+          };
+        }
+      }
+      await this.pool.query("COMMIT");
     }
-
-    // いんんさーとを行う
-    const hashPassword = createHash("sha256")
-      .update(updateObj.password + this.salt)
-      .digest("hex");
-    const { rows: insertRows } = await this.pool.query(
-      `INSERT INTO "public"."user_info" ( "user_id", "password") VALUES ( $1, $2) RETURNING id;`,
-      [updateObj.email, hashPassword]
-    );
-    if (insertRows.length === 0) {
-      throw {
-        message: "ユーザー登録に失敗しました。",
-      };
-    }
-    await this.pool.query("COMMIT");
-
-    const { rows } = await this.pool.query(
-      `UPDATE borrowed_users SET status = 'active', email = $1 FROM user_invitations WHERE user_invitations.invitation_code = $2 AND borrowed_users.id = user_invitations.borrowed_user_id RETURNING borrowed_users.id`,
-      [updateObj.email, updateObj.code]
-    );
-    if (rows.length === 0) {
-      throw {
-        message: "ユーザー登録に失敗しました。",
-      };
+    catch(e){
+      await this.pool.query("ROLLBACK");
+      throw e;
     }
     return response;
   }
