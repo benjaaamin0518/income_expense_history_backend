@@ -355,7 +355,7 @@ with
       query,
       mode == "borrowing" ? [id] : borrowedUserId ? [borrowedUserId] : []
     );
-    const { predictions } = await this.getPredictWithGemini(
+    const { predictions, isCached } = await this.getPredictWithGemini(
       await this.getIncomeExpenseHistory(id, borrowedUserId, mode)
     );
     console.log(predictions);
@@ -392,6 +392,7 @@ with
       });
       return prev;
     }, []);
+    if (isCached) return result;
     for (const prediction of predictions) {
       await this.pool.query(
         `INSERT INTO "public"."predictions" ( "created_at", "user_id", "month", "income", "expense", "reasoning", "target_user_id") VALUES (CURRENT_TIMESTAMP, $1, TO_DATE($2 || '-01', 'YYYY-MM-DD'), $3, $4, $5, $6);`,
@@ -522,7 +523,7 @@ with
     if (this.predictionCache.has(cacheKey)) {
       const cached = this.predictionCache.get(cacheKey);
       if (now - cached.timestamp < this.CACHE_DURATION) {
-        return cached.predictions;
+        return { isCached: true, predictions: cached.predictions };
       }
     }
 
@@ -644,6 +645,7 @@ with
       }
       console.log(resultMap);
       const averagedPredictions: predictions = {
+        isCached: false,
         predictions: monthList.map((month, monthIndex) => {
           const repayment =
             resultMap.get(month + "-repayment") / predictions.length;
@@ -667,7 +669,7 @@ with
       return averagedPredictions;
     } catch (error) {
       console.error("Gemini API error:", error);
-      return { predictions: [] };
+      return { isCached: true, predictions: [] };
     }
   }
   public async getInvitation(code: string) {
