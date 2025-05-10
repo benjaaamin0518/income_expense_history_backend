@@ -523,7 +523,7 @@ with
     if (this.predictionCache.has(cacheKey)) {
       const cached = this.predictionCache.get(cacheKey);
       if (now - cached.timestamp < this.CACHE_DURATION) {
-        return { isCached: true, predictions: cached.predictions };
+        return { isCached: true, ...cached.predictions };
       }
     }
 
