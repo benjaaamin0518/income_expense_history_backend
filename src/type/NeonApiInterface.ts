@@ -8,6 +8,7 @@ export type loginAuthRequest = {
 export type IncomeExpenseType = "0" | "1"; // 0: repayment, 1: debt
 export type InsertBorrowedUserType = "new" | "exists"; // 0: repayment, 1: debt
 export type TransactionMode = "borrowing" | "lending";
+export type ProcessedType = "done" | "pending" | "rejected";
 
 export type BorrowedUser = {
     id: number;
@@ -27,7 +28,7 @@ export type UserInvitation = {
 
 export type loginAuthApiRequest = Request<loginAuthRequest>;
 export type loginAuthResponse =
-    | { status: number; result: { accessToken: string } }
+    | { status: number; result: { accessToken: string, borrowedUserId: number|null } }
     | { error: string; status: number };
 export type loginAuthApiResponse = Response<loginAuthResponse>;
 export type accessTokenAuthRequest = {
@@ -81,6 +82,8 @@ export type incomeExpenseHistory = {
     id: number;
     borrowed_user_id?: string;
     borrowed_user_name?: string;
+    created_by? : number;
+    status? : ProcessedType;
 };
 
 export type insertIncomeExpenseHistoryRequest = accessTokenAuthRequest &
@@ -145,7 +148,7 @@ export type getIncomeExpenseHistoryApiResponse =
     Response<getIncomeExpenseHistoryResponse>;
 export type accessTokenAuthApiRequest = Request<accessTokenAuthRequest>;
 export type accessTokenAuthResponse =
-    | { status: number }
+    | { status: number, result:{borrowedUserId: number|null} }
     | { error: string; status: number };
 export type accessTokenAuthApiResponse = Response<accessTokenAuthResponse>;
 

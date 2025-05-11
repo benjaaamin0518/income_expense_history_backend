@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import {
-  accessTokenAuthRequest,
+  accessTokenAuthApiResponse,
+  accessTokenAuthRequest, accessTokenAuthResponse,
   incomeExpenseHistory,
   insertBorrowedUserApiRequest,
   insertBorrowedUserRequest,
@@ -43,7 +44,7 @@ export class NeonApi {
    */
   public async loginAuth({ userId, password }: loginAuthRequest) {
     // レスポンス内容(初期値)
-    const response = { accessToken: "" };
+    const response = { accessToken: "", borrowedUserId:null };
     // リクエスト.パスワード + リクエスト.パスワード(ソルト値)」でハッシュ値を作成
     const hashPassword = createHash("sha256")
       .update(password + this.salt)
@@ -92,6 +93,7 @@ export class NeonApi {
       accessToken: newAccessToken,
     };
     response.accessToken = jwt.sign(peyload, this.salt || "", this.config);
+    response.borrowedUserId = borrowedUserId;
     return response;
   }
   /**
@@ -281,6 +283,7 @@ with
           time_ranges
           left join income_expense_history on income_expense_history.created_at < (from_date + interval '1' month)
           and income_expense_history.type = '0'
+          and income_expense_history.status = 'done'
           ${
             mode == "borrowing" || borrowedUserId
               ? "and income_expense_history.user_id = $1"
@@ -307,6 +310,7 @@ with
           time_ranges
           left join income_expense_history on income_expense_history.created_at < (from_date + interval '1' month)
           and income_expense_history.type = '1'
+          and income_expense_history.status = 'done'
           ${
             mode == "borrowing" || borrowedUserId
               ? "and income_expense_history.user_id = $1"
@@ -357,8 +361,9 @@ with
       query,
       mode == "borrowing" ? [id] : borrowedUserId ? [borrowedUserId] : []
     );
+    const histories:incomeExpenseHistory[] = await this.getIncomeExpenseHistory(id, borrowedUserId, mode);
     const { predictions, isCached } = await this.getPredictWithGemini(
-      await this.getIncomeExpenseHistory(id, borrowedUserId, mode)
+        histories.filter(history => history.status == "done")
     );
     console.log(predictions);
     const result = rows.reduce((prev, current, index) => {
@@ -420,7 +425,7 @@ with
     let response: "success" | "error" = "success";
     // いんんさーとを行う
     const { rows } = await this.pool.query(
-      `DELETE FROM "public"."income_expense_history" WHERE id = $1 RETURNING id;`,
+      `DELETE FROM "public"."income_expense_history" WHERE id = $1 AND created_by = ${userId} RETURNING id;`,
       [id]
     );
     if (rows.length === 0) {
@@ -439,9 +444,17 @@ with
   ) {
     // レスポンス内容(初期値)
     let response: "success" | "error" = "success";
+    const {rows:statusInfo} = await this.pool.query(
+        `SELECT status FROM "public"."borrowed_users" WHERE id = $1`,[updateObj.borrowed_user_id]
+    );
+    if (statusInfo.length === 0) {
+      response = "error";
+      return response;
+    }
+    const isActive = statusInfo[0].status == "active";
     // いんんさーとを行う
     const { rows } = await this.pool.query(
-      `INSERT INTO "public"."income_expense_history" ( "created_at", "price", "type", "description", "user_id", "borrowed_user_id"
+      `INSERT INTO "public"."income_expense_history" ( "created_at", "price", "type", "description", "user_id", "borrowed_user_id", "status", "created_by"
       ) VALUES ( $1, $2, $3, $4, $5, $6) RETURNING id;`,
       [
         updateObj.date,
@@ -452,10 +465,13 @@ with
           null,
         (updateObj.mode == "borrowing" ? updateObj.borrowed_user_id : userId) ||
           null,
+        isActive ? "done" : "pending",
+        userId
       ]
     );
     if (rows.length === 0) {
       response = "error";
+      return response;
     }
     return response;
   }
@@ -473,6 +489,8 @@ with
           , income_expense_history.created_at
           , income_expense_history.borrowed_user_id
           , income_expense_history.id
+          , income_expense_history.status
+          , income_expense_history.created_by
           , borrowed_users.name AS borrowed_user_name
         FROM
           income_expense_history
@@ -508,6 +526,8 @@ with
         date: current.created_at,
         borrowed_user_id: current.borrowed_user_id,
         borrowed_user_name: current.borrowed_user_name,
+        status : current.status,
+        created_by: current.created_by,
         id: current.id,
       });
       return prev;
@@ -941,4 +961,60 @@ with
     }
     return response;
   }
+  /**
+   *
+   * @param param0 userId,削除に必要な情報(id)
+   * @returns　"success" or "error"
+   */
+  public async updateStatusPending(userId: number, id: number) {
+    // レスポンス内容(初期値)
+    let response: "success" | "error" = "success";
+    // いんんさーとを行う
+    const { rows } = await this.pool.query(
+        `UPDATE  "public"."income_expense_history" SET status = 'pending' WHERE id = $1 AND created_by = ${userId} AND status = 'rejected' RETURNING id;`,
+        [id]
+    );
+    if (rows.length === 0) {
+      response = "error";
+    }
+    return response;
+  }
+  /**
+   *
+   * @param param0 userId,削除に必要な情報(id)
+   * @returns　"success" or "error"
+   */
+  public async updateStatusRejected(userId: number, id: number) {
+    // レスポンス内容(初期値)
+    let response: "success" | "error" = "success";
+    // いんんさーとを行う
+    const { rows } = await this.pool.query(
+        `UPDATE  "public"."income_expense_history" SET status = 'rejected' WHERE id = $1 AND borrowed_user_id = ${userId} AND status = 'pending' RETURNING id;`,
+        [id]
+    );
+    if (rows.length === 0) {
+      response = "error";
+    }
+    return response;
+  }
+  /**
+   *
+   * @param param0 userId,削除に必要な情報(id)
+   * @returns　"success" or "error"
+   */
+  public async updateStatusDone(userId: number, id: number) {
+    // レスポンス内容(初期値)
+    let response: "success" | "error" = "success";
+    // いんんさーとを行う
+    const { rows } = await this.pool.query(
+        `UPDATE  "public"."income_expense_history" SET status = 'done' WHERE id = $1 AND borrowed_user_id = ${userId} AND status = 'pending' RETURNING id;`,
+        [id]
+    );
+    if (rows.length === 0) {
+      response = "error";
+    }
+    return response;
+  }
+
+
 }
