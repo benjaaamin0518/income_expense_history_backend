@@ -451,11 +451,11 @@ with
       response = "error";
       return response;
     }
-    const isActive = statusInfo[0].status == "active";
+    const isActive = statusInfo[0].status === "active";
     // いんんさーとを行う
     const { rows } = await this.pool.query(
       `INSERT INTO "public"."income_expense_history" ( "created_at", "price", "type", "description", "user_id", "borrowed_user_id", "status", "created_by"
-      ) VALUES ( $1, $2, $3, $4, $5, $6) RETURNING id;`,
+      ) VALUES ( $1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`,
       [
         updateObj.date,
         updateObj.price,
@@ -465,7 +465,7 @@ with
           null,
         (updateObj.mode == "borrowing" ? updateObj.borrowed_user_id : userId) ||
           null,
-        isActive ? "done" : "pending",
+        isActive ? "pending" : "done",
         userId
       ]
     );
@@ -902,10 +902,10 @@ with
             `INSERT INTO "public"."user_info" ("user_id", "password")
              SELECT DISTINCT $1, $2
              FROM "public"."borrowed_users"
-             WHERE email = ($1)::text RETURNING id;`,
+             WHERE ${updateObj.email || updateObj.email !== "" ?`` : `NOT`} EXISTS (SELECT DISTINCT 1 FROM "public"."borrowed_users" WHERE email = $1) RETURNING id;`,
             [updateObj.email, hashPassword]
         );
-        if (insertRows.length === 0) {
+        if (insertRows.length !== 1) {
           throw {
             message: "ユーザー登録に失敗しました。",
           };
@@ -919,10 +919,10 @@ with
             `INSERT INTO "public"."user_info" ("user_id", "password")
              SELECT DISTINCT $1, $2
              FROM "public"."borrowed_users"
-             WHERE email != $1 RETURNING id;`,
+             WHERE NOT EXISTS (SELECT DISTINCT 1 FROM "public"."borrowed_users" WHERE email = $1) RETURNING id;`,
             [updateObj.email, hashPassword]
         );
-        if (insertRows.length === 0) {
+        if (insertRows.length !== 1) {
           throw {
             message: "ユーザー登録に失敗しました。",
           };
