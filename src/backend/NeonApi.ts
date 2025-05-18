@@ -258,96 +258,80 @@ export class NeonApi {
          */
         const query = {
             text: `
-                with time_ranges as (select generate_series as from_date,
-                                            generate_series + '1 month'::interval as to_date
-                                     from
-                                         generate_series(
-                                                 (
-                                                     date_trunc('month', CURRENT_TIMESTAMP) - interval '12' month
-                                                     ),
-                                                 date_trunc('month', CURRENT_TIMESTAMP) + interval '2' month,
-                                                 '1 month'
-                                         )),
-                     monthly_report as (select from_date,
-                                               coalesce(income_history.sum_income, 0)   as sum_income,
-                                               coalesce(expense_history.sum_expense, 0) as sum_expense
-                                        from time_ranges
-                                                 left join (select SUM(income_expense_history.price) as sum_income,
-                                                                   from_date                         as income_from_date
-                                                            from time_ranges
-                                                                     left join income_expense_history
-                                                                               on income_expense_history.created_at <
-                                                                                  (from_date + interval '1' month)
-                                                                                   and income_expense_history.type = '0'
-                                                                                   and
-                                                                                  income_expense_history.status = 'done'
-                                                                ${
-                                                                        mode == "borrowing" || borrowedUserId
-                                                                                ? "and income_expense_history.user_id = $1"
-                                                                                : ""
-                                                                } ${
-                                                                    mode == "borrowing"
-                                                                            ? borrowedUserId
-                                                                                    ? "and income_expense_history.borrowed_user_id =" +
-                                                                                    borrowedUserId
-                                                                                    : ""
-                                                                            : "and income_expense_history.borrowed_user_id =" + id
-                                                            }
-                                                            group by
-                                                                from_date
-                                                            order by
-                                                                from_date) as income_history
-                                                           on income_history.income_from_date = from_date
-                                                 left join (select SUM(income_expense_history.price) as sum_expense,
-                                                                   from_date                         as expense_from_date
-                                                            from time_ranges
-                                                                     left join income_expense_history
-                                                                               on income_expense_history.created_at <
-                                                                                  (from_date + interval '1' month)
-                                                                                   and income_expense_history.type = '1'
-                                                                                   and
-                                                                                  income_expense_history.status = 'done'
-                                                                ${
-                                                                        mode == "borrowing" || borrowedUserId
-                                                                                ? "and income_expense_history.user_id = $1"
-                                                                                : ""
-                                                                } ${
-                                                                    mode == "borrowing"
-                                                                            ? borrowedUserId
-                                                                                    ? "and income_expense_history.borrowed_user_id =" +
-                                                                                    borrowedUserId
-                                                                                    : ""
-                                                                            : "and income_expense_history.borrowed_user_id =" + id
-                                                            }
-                                                            group by
-                                                                from_date
-                                                            order by
-                                                                from_date) as expense_history
-                                                           on expense_history.expense_from_date = from_date) (select to_char(from_date, 'YYYY-MM') as month,
-      case
-        when monthly_report.from_date <= date_trunc('month', CURRENT_TIMESTAMP) then sum_income
-        else 0
-      end as sum_income,
-      case
-        when monthly_report.from_date <= date_trunc('month', CURRENT_TIMESTAMP) then sum_expense
-        else 0
-      end as sum_expense,
-      case
-        when monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP) then
-          sum_income
-        else 0
-      end as income_prediction,
-      case
-        when monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP) then
-          sum_expense
-        else 0
-      end as expense_prediction
-                                                                                                              from
-                                                                                                                  monthly_report
-                                                                                                              where
-                                                                                                                  monthly_report.from_date
-                                                                                                                  > date_trunc('month'
-                                                                                                                  , CURRENT_TIMESTAMP) - interval '4' month);
+                with time_ranges as(
+                    select
+                        generate_series as from_date,
+                        generate_series + '1 month'::interval as to_date
+                    from
+                        generate_series((date_trunc('month', CURRENT_TIMESTAMP) - interval '12' month), date_trunc('month', CURRENT_TIMESTAMP) + interval '2' month, '1 month')
+                ),
+                 monthly_report as(
+                     select
+                         from_date,
+                         coalesce(income_history.sum_income, 0) as sum_income,
+                         coalesce(expense_history.sum_expense, 0) as sum_expense
+                     from
+                         time_ranges
+                             left join
+                         (
+                             select
+                                 SUM(income_expense_history.price) as sum_income,
+                                 from_date as income_from_date
+                             from
+                                 time_ranges
+                                     left join
+                                 income_expense_history
+                                 on  income_expense_history.created_at < (from_date + interval '1' month)
+                                     and income_expense_history.type = '0'
+                                     and income_expense_history.status = 'done' ${ mode == "borrowing" || borrowedUserId ? "and income_expense_history.user_id = $1" : "" } ${ mode == "borrowing" ? borrowedUserId ? "and income_expense_history.borrowed_user_id =" + borrowedUserId : "" : "and income_expense_history.borrowed_user_id =" + id }
+                             group by
+                                 from_date
+                             order by
+                                 from_date
+                         ) as income_history
+                         on  income_history.income_from_date = from_date
+                             left join
+                         (
+                             select
+                                 SUM(income_expense_history.price) as sum_expense,
+                                 from_date as expense_from_date
+                             from
+                                 time_ranges
+                                     left join
+                                 income_expense_history
+                                 on  income_expense_history.created_at < (from_date + interval '1' month)
+                                     and income_expense_history.type = '1'
+                                     and income_expense_history.status = 'done' ${ mode == "borrowing" || borrowedUserId ? "and income_expense_history.user_id = $1" : "" } ${ mode == "borrowing" ? borrowedUserId ? "and income_expense_history.borrowed_user_id =" + borrowedUserId : "" : "and income_expense_history.borrowed_user_id =" + id }
+                             group by
+                                 from_date
+                             order by
+                                 from_date
+                         ) as expense_history
+                         on  expense_history.expense_from_date = from_date
+                 )(
+                    select
+                        to_char(from_date, 'YYYY-MM') as month,
+                        case
+                            when monthly_report.from_date <= date_trunc('month', CURRENT_TIMESTAMP) then sum_income
+                            else 0
+                        end as sum_income,
+                        case
+                            when monthly_report.from_date <= date_trunc('month', CURRENT_TIMESTAMP) then sum_expense
+                            else 0
+                        end as sum_expense,
+                        case
+                            when monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP) then sum_income
+                            else 0
+                        end as income_prediction,
+                        case
+                            when monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP) then sum_expense
+                            else 0
+                        end as expense_prediction
+                    from
+                        monthly_report
+                    where
+                        monthly_report.from_date > date_trunc('month', CURRENT_TIMESTAMP) - interval '4' month
+                )
             `,
         };
         const {rows} = await this.pool.query(
