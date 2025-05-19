@@ -609,13 +609,13 @@ export class NeonApi {
           "month": "${month1}",
           "repayment": number,
           "debt": number,
-          "reasoning":  Weighted average formula (including intermediate formula)"
+          "reasoning":  Weighted average formula"
         },
         {
           "month": "${month2}",
           "repayment": number,
           "debt": number,
-          "reasoning": " Weighted average formula (including intermediate formula)"
+          "reasoning": " Weighted average formula"
         }
       ]
     }
