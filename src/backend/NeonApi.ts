@@ -581,7 +581,7 @@ export class NeonApi {
     7-1. Calculate key metrics:
        - Last 3 months average (50% weight)
        - Past 4-6 months average (30% weight)
-       - Remaining months(From the last 7 months) average (20% weight)
+       - Remaining months(Since past 7 months) average (20% weight)
        - Monthly growth rate
        - Standard deviation
        - Identify outliers (>2σ from mean)
@@ -634,7 +634,7 @@ export class NeonApi {
        - Flag any extreme variations
        - Adjust predictions that deviate significantly
     4. Moving Averages:
-       - Weighted recent average = (Last 3 months × 0.5 + Past 4-6 months × 0.3 + Remaining months(From the last 7 months) × 0.2) / Total periods
+       - Weighted recent average = (Last 3 months × 0.5 + Past 4-6 months × 0.3 + Remaining months(Since past 7 months) × 0.2) / Total periods
     
     5. Standard Deviation:
        σ = sqrt(Σ(x - μ)² / N)
