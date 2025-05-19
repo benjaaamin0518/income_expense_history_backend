@@ -580,8 +580,8 @@ export class NeonApi {
        - Adjust predictions if they deviate significantly from historical patterns
     7-1. Calculate key metrics:
        - Last 3 months average (50% weight)
-       - Past 3-6 months average (30% weight)
-       - Remaining months average (20% weight)
+       - Past 4-6 months average (30% weight)
+       - Remaining months(From the last 7 months) average (20% weight)
        - Monthly growth rate
        - Standard deviation
        - Identify outliers (>2σ from mean)
