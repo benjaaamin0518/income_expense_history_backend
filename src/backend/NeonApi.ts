@@ -609,13 +609,13 @@ export class NeonApi {
           "month": "${month1}",
           "repayment": number,
           "debt": number,
-          "reasoning": Detailed explanation of the predictions in Japanese: 1) Analysis of historical patterns, 2) Validation of predictions against historical data, 3) Justification for any significant changes from historical trends"
+          "reasoning": Detailed explanation of the predictions in Japanese: 1) Analysis of historical patterns, 2) Validation of predictions against historical data, 3) Justification for any significant changes from historical trends 4) Weighted average formula (including intermediate formula)"
         },
         {
           "month": "${month2}",
           "repayment": number,
           "debt": number,
-          "reasoning": "Detailed explanation of the predictions in Japanese: 1) Analysis of historical patterns, 2) Validation of predictions against historical data, 3) Justification for any significant changes from historical trends"
+          "reasoning": "Detailed explanation of the predictions in Japanese: 1) Analysis of historical patterns, 2) Validation of predictions against historical data, 3) Justification for any significant changes from historical trends 4) Weighted average formula (including intermediate formula)"
         }
       ]
     }
