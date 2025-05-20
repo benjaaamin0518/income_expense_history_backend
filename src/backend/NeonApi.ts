@@ -609,13 +609,12 @@ export class NeonApi {
           "month": "${month1}",
           "repayment": number,
           "debt": number,
-          "reasoning":  How is the weighted average obtained?
-　　　    },
+          "reasoning": Please explain the formula for calculating the Weighted recent averages(Prediction Validation Criteria 4.) },
         {
           "month": "${month2}",
           "repayment": number,
           "debt": number,
-          "reasoning":How is the weighted average obtained?
+          "reasoning":Please explain the formula for calculating the Weighted recent averages(Prediction Validation Criteria 4.)
 　　     }
       ]
     }
