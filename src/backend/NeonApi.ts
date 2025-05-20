@@ -609,12 +609,12 @@ export class NeonApi {
           "month": "${month1}",
           "repayment": number,
           "debt": number,
-          "reasoning": Please explain the formula for calculating the Weighted recent averages(Prediction Validation Criteria 4.) },
+          "reasoning": (Last 3 months × 0.5 + Past 4-6 months × 0.3 + Remaining months(before the last 7 months) × 0.2) / Total periods },
         {
           "month": "${month2}",
           "repayment": number,
           "debt": number,
-          "reasoning":Please explain the formula for calculating the Weighted recent averages(Prediction Validation Criteria 4.)
+          "reasoning":(Last 3 months × 0.5 + Past 4-6 months × 0.3 + Remaining months(before the last 7 months) × 0.2) / Total periods
 　　     }
       ]
     }
