@@ -609,13 +609,14 @@ export class NeonApi {
           "month": "${month1}",
           "repayment": number,
           "debt": number,
-          "reasoning": (Last 3 months × 0.5 + Past 4-6 months × 0.3 + Remaining months(before the last 7 months) × 0.2) / Total periods },
+          "reasoning":  Detailed explanation of the predictions in Japanese: 1) Analysis of historical patterns, 2) Validation of predictions against historical data, 3) Justification for any significant changes from historical trends
+        },
         {
           "month": "${month2}",
           "repayment": number,
           "debt": number,
-          "reasoning":(Last 3 months × 0.5 + Past 4-6 months × 0.3 + Remaining months(before the last 7 months) × 0.2) / Total periods
-　　     }
+          "reasoning":  Detailed explanation of the predictions in Japanese: 1) Analysis of historical patterns, 2) Validation of predictions against historical data, 3) Justification for any significant changes from historical trends
+        }
       ]
     }
 
