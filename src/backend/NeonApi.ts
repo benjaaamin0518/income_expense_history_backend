@@ -679,6 +679,7 @@ export class NeonApi {
        - Provide specific justification if deviation > 20%
 
     Note:
+    - Do not hallusinate.
     - Return ONLY valid JSON. Do not include any comments or explanations.
     - Provide clear and concise explanations in Japanese for the predictions, including validation results.
     - If predictions seem unusual, include detailed justification in the reasoning.`;
