@@ -546,6 +546,8 @@ export class NeonApi {
         }
 
         const model = this.genAI.getGenerativeModel({model: "gemini-2.0-flash"});
+        const oldDate = historicalData[historicalData.length - 1].date;
+        console.log(oldDate);
         const currentDate = new Date();
         const nextMonth = new Date(
             currentDate.getFullYear(),
@@ -586,7 +588,7 @@ export class NeonApi {
     Provide both predictions and a detailed explanation of the overall prediction rationale.
 
     Input Data Format:
-    - date: Transaction date(YYYY-MM)
+    - date: Transaction date(YYYY-MM-DD)
     - type: "0" = Repayment, "1" = Debt
     - price: Amount
 
@@ -606,9 +608,9 @@ export class NeonApi {
        - Flag any anomalous predictions
        - Adjust predictions if they deviate significantly from historical patterns
     7-1. Calculate key metrics:
-       - ${last3Months.join(',')} sum price average (50% weight)
-       - ${past4To6Months.join(',')} sum price average (30% weight)
-       - Remaining months(From the ${month3}) sum price average (20% weight)
+       - ${last3Months.join(',')} months sum price (50% weight)
+       - ${past4To6Months.join(',')} months sum price (30% weight)
+       - Remaining months(${month3} month 〜 ${oldDate}) sum price (20% weight)
        - Monthly growth rate
        - Standard deviation
        - Identify outliers (>2σ from mean)
@@ -661,7 +663,7 @@ export class NeonApi {
        - Flag any extreme variations
        - Adjust predictions that deviate significantly
     4. Moving Averages:
-      - Weighted recent average = (${last3Months.join(',')} sum price × 0.5(weight) + ${past4To6Months.join(',')} sum price × 0.3(weight) + Remaining months(From the ${month3}) sum price × 0.2(weight)) / total weights (If the sum price is 0, absolutely exclude each weight from the total weights)
+      - Weighted recent average = (${last3Months.join(',')} months sum price × 0.5(weight) + ${past4To6Months.join(',')} months sum price × 0.3(weight) + Remaining months(${month3} month 〜 ${oldDate}) sum price × 0.2(weight)) / total weights (If the sum price is 0, absolutely exclude each weight from the total weights)
     5. Standard Deviation:
        σ = sqrt(Σ(x - μ)² / N)
        where:
