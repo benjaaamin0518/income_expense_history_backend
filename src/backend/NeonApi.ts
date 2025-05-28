@@ -546,7 +546,8 @@ export class NeonApi {
         }
 
         const model = this.genAI.getGenerativeModel({model: "gemini-2.0-flash"});
-        const oldDate = historicalData.length > 0 ? historicalData[historicalData.length - 1].date : "1990-01-01";
+        //const oldDate = historicalData.length > 0 ? historicalData[historicalData.length - 1].date : "1990-01-01";
+        const oldDate = "unknown"
         console.log(oldDate);
         const currentDate = new Date();
         const nextMonth = new Date(
