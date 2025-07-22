@@ -1021,7 +1021,7 @@ export class NeonApi {
                          email  = $1 FROM user_invitations
                      WHERE user_invitations.invitation_code = $2
                        AND borrowed_users.id = user_invitations.borrowed_user_id 
-                       AND status = 'pending' RETURNING borrowed_users.id`,
+                       AND borrowed_users.status = 'pending' RETURNING borrowed_users.id`,
                     [updateObj.email, updateObj.code]
                 );
                 if (rows.length === 0) {
