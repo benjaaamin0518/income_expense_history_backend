@@ -987,9 +987,9 @@ export class NeonApi {
                      SELECT DISTINCT $1, $2
                      FROM "public"."borrowed_users"
                      WHERE ${
-                                   updateObj.email || updateObj.email !== "" ? `` : `NOT`
-                           } EXISTS (SELECT DISTINCT 1 FROM "public"."borrowed_users" WHERE email = $1) RETURNING id;`,
-                    [updateObj.email, hashPassword]
+                                   updateObj.email || updateObj.email !== "" ? `NOT` : `NOT`
+                           } EXISTS (SELECT DISTINCT 1 FROM "public"."borrowed_users" WHERE (id != $3 AND email = $1) OR NOT(id = $3 AND email IS NULL)) RETURNING id;`,
+                    [updateObj.email, hashPassword, invitationRows[0].borrowed_user_id]
                 );
                 if (insertRows.length !== 1) {
                     throw {
@@ -1020,7 +1020,8 @@ export class NeonApi {
                      SET status = 'active',
                          email  = $1 FROM user_invitations
                      WHERE user_invitations.invitation_code = $2
-                       AND borrowed_users.id = user_invitations.borrowed_user_id RETURNING borrowed_users.id`,
+                       AND borrowed_users.id = user_invitations.borrowed_user_id 
+                       AND status = 'pending' RETURNING borrowed_users.id`,
                     [updateObj.email, updateObj.code]
                 );
                 if (rows.length === 0) {
