@@ -993,7 +993,7 @@ export class NeonApi {
                 );
                 if (insertRows.length !== 1) {
                     throw {
-                        message: "ユーザー登録に失敗しました。",
+                        message: "ユーザー登録に失敗しました。（認証コード:借用・貸付許可ユーザー管路情報チェック処理）",
                     };
                 }
             } else {
@@ -1010,7 +1010,7 @@ export class NeonApi {
                 );
                 if (insertRows.length !== 1) {
                     throw {
-                        message: "ユーザー登録に失敗しました。",
+                        message: "ユーザー登録に失敗しました。（ユーザー情報作成処理）",
                     };
                 }
             }
@@ -1026,7 +1026,7 @@ export class NeonApi {
                 );
                 if (rows.length === 0) {
                     throw {
-                        message: "ユーザー登録に失敗しました。",
+                        message: "ユーザー登録に失敗しました。（認証コード:ステータス変更処理）",
                     };
                 }
             } else {
@@ -1037,7 +1037,7 @@ export class NeonApi {
                 );
                 if (rows.length === 0) {
                     throw {
-                        message: "ユーザー登録に失敗しました。",
+                        message: "ユーザー登録に失敗しました。(借用・貸付許可ユーザー管路情報登録処理）",
                     };
                 }
             }
