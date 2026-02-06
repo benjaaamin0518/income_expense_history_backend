@@ -16,8 +16,7 @@ import {
 } from "../type/NeonApiInterface";
 import {createHash, randomBytes} from "crypto";
 import * as jwt from "jsonwebtoken";
-import {GoogleGenerativeAI} from "@google/generative-ai";
-
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 require("dotenv").config();
 
 export class NeonApi {
@@ -34,8 +33,10 @@ export class NeonApi {
         expiresIn: 1000,
         algorithm: "HS256",
     } as const;
-    private genAI = new GoogleGenerativeAI(
-        process.env.REACT_APP_GEMINI_API_KEY || ""
+    private genAI = new GoogleGenAI(
+      {
+       apiKey: process.env.REACT_APP_GEMINI_API_KEY || ""
+      }
     );
     private predictionCache = new Map<string, any>();
     private readonly CACHE_DURATION = 1000 * 60 * 60; // 1 hour
@@ -545,7 +546,6 @@ export class NeonApi {
             }
         }
 
-        const model = this.genAI.getGenerativeModel({model: "gemini-2.0-flash"});
         const oldDate = historicalData.length > 0 ? historicalData[historicalData.length - 1].date : "1990-01-01";
         console.log(oldDate);
         const currentDate = new Date();
@@ -693,9 +693,19 @@ export class NeonApi {
             // Run multiple predictions and average them
             const predictions = [] as predict[][];
             for (let i = 0; i < this.PREDICTION_ATTEMPTS; i++) {
-                const result = await model.generateContent(prompt);
-                const response = await result.response;
-                const text = response.text().trim();
+                const result = await this.genAI.models.generateContent(
+                  {
+                    model: "gemini-3-flash-preview",
+                    contents: prompt,
+                    config: {
+                      temperature: 1.0,
+                      thinkingConfig: {
+                        thinkingLevel: ThinkingLevel.LOW,
+                      }
+                    }
+                });
+                const response = result.text;
+                const text = response!.trim();
                 const jsonMatch = text.match(/\{[\s\S]*\}/);
                 if (!jsonMatch) {
                     throw new Error("Invalid JSON response");
