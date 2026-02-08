@@ -800,6 +800,9 @@ export class NeonApi {
       mode,
       accessToken,
     );
+    if (borrowed_user_id) {
+      await this.createPredictTask(userId, null, mode, accessToken);
+    }
     return response;
   }
 
@@ -855,6 +858,9 @@ export class NeonApi {
         updateObj.mode,
         accessToken,
       );
+      if (updateObj.selectedUserId) {
+        await this.createPredictTask(userId, null, updateObj.mode, accessToken);
+      }
     }
     return response;
   }
@@ -1566,6 +1572,9 @@ export class NeonApi {
       mode,
       accessToken,
     );
+    if (borrowed_user_id) {
+      await this.createPredictTask(userId, null, mode, accessToken);
+    }
     return response;
   }
 }
