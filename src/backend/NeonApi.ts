@@ -399,14 +399,14 @@ export class NeonApi {
         await this.updateStatusForPredictionTask(taskId, "error");
         return "error";
       }
-      const result = await this.getIncomeExpenseHistory(
+      const result: incomeExpenseHistory[] = await this.getIncomeExpenseHistory(
         predictionTask.user_id,
         predictionTask.borrowed_user_id,
         predictionTask.mode,
       );
       const geminiResult = await this.getPredictWithGemini(
         predictionTask,
-        result,
+        result.filter((history) => history.status == "done"),
       );
       //console.log("geminiResult", geminiResult ? "done" : "error");
       await this.updateStatusForPredictionTask(
