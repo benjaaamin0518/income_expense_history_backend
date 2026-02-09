@@ -976,7 +976,7 @@ export class NeonApi {
     Provide both predictions and a detailed explanation of the overall prediction rationale.
 
     Input Data Format:
-    - date: Transaction date(YYYY-MM-DD)
+    - date: Transaction date (YYYY-MM-DD)
     - type: "0" = Repayment, "1" = Debt
     - price: Amount
 
@@ -984,98 +984,141 @@ export class NeonApi {
     ${JSON.stringify(historicalData, null, 2)}
 
     Analysis Requirements:
-    1. Identify spending patterns and trends
-    2. Consider seasonal variations in repayment and debt
-    3. Analyze repayment and debt cycles
-    4. Weight recent data more heavily in predictions
-    5. Exclude outliers that might affect prediction accuracy
-    6. Consider economic factors that might influence future spending
-    7. Validate predictions against historical patterns:
-       - Compare predicted amounts with historical Weighted recent averages(Prediction Validation Criteria 4.)
-       - Ensure predictions follow logical trends
-       - Flag any anomalous predictions
-       - Adjust predictions if they deviate significantly from historical patterns
-    7-1. Calculate key metrics:
-       - ${last3Months.join(",")} months sum price (50% weight)
-       - ${past4To6Months.join(",")} months sum price (30% weight)
-       - Remaining months(${month3} month 〜 ${oldDate}) sum price (20% weight)
-       - Monthly growth rate
-       - Standard deviation
-       - Identify outliers (>2σ from mean)
-  
-    7-2. Identify patterns:
-       - Monthly trends (e.g., higher expenses in specific months)
-       - Day-of-month patterns
-       - Transaction size patterns
-    
-    7-3. Calculate and show:
-       - Standard deviation from the mean
-       - Identification of outliers (transactions > 2 standard deviations)
-       - Growth rate month-over-month
-    
-    7-4. Validation steps:
-       - Compare predictions with calculated averages
-       - Show percentage deviation from historical averages
-       - Justify any predictions that deviate more than 20% from averages
 
+    [Minimum Statistical Definitions]
+    - All calculations must be done separately for repayment (type "0") and debt (type "1").
+    - Monthly aggregation must be based on calendar month in JST (YYYY-MM).
+    - Outliers must be detected using MONTHLY TOTALS, not individual transactions.
 
-    Return ONLY valid JSON in the following format without any explanations or additional text:
+    Outlier rule:
+    A month is an outlier if its monthly total is outside:
+    μ ± 2σ
+    where:
+    μ = mean of monthly totals
+    σ = standard deviation of monthly totals
+
+    After removing outlier months, recalculate μ from the remaining monthly totals.
+    This recalculated μ is the ONLY "average" to be used in all subsequent calculations.
+
+    If total number of months < 6, skip outlier detection.
+
+    "Average" in this task always refers to the recalculated μ of monthly totals AFTER outlier removal.
+
+    Use recent months more heavily when forming predictions, but do not strictly follow a formula if historical patterns suggest otherwise.
+
+    ------------------------------------------------------------
+    [MANDATORY PROCESSING ORDER — MUST FOLLOW STRICTLY]
+
+    Step 1. Aggregate all transactions into monthly totals (YYYY-MM, JST) separately for repayment and debt.
+
+    Step 2. Calculate initial μ and σ from the monthly totals.
+
+    Step 3. Detect outlier months using μ ± 2σ.
+
+    Step 4. Remove outlier months.
+
+    Step 5. Recalculate μ from the remaining monthly totals.
+    This μ becomes the ONLY average used in all later steps.
+
+    Step 6. Use the cleaned monthly totals to compute:
+    - ${last3Months.join(",")} months sum price (50% weight)
+    - ${past4To6Months.join(",")} months sum price (30% weight)
+    - Remaining months (${month3} month 〜 ${oldDate}) sum price (20% weight)
+    - Monthly growth rate
+
+    Step 7. Identify patterns:
+    - Monthly trends
+    - Seasonal patterns
+    - Day-of-month patterns
+    - Transaction size patterns
+    - Repayment/debt cycles
+
+    Step 8. Generate predictions using:
+    - Weighted recent average
+    - Growth trends
+    - Seasonal patterns
+    - Recent behavioral changes
+
+    Step 9. Validate predictions against:
+    - Recalculated μ
+    - Weighted recent average
+    - Historical trends
+    - Growth rate
+    - Calculate percentage deviation from each average.
+    - If deviation exceeds 20%:
+      - Re-evaluate the prediction.
+      - Adjust the prediction if it is not strongly supported by historical trends or seasonal patterns.
+      - Provide explicit justification for the final value.
+
+    ------------------------------------------------------------
+
+    Return ONLY valid JSON in the following format:
+
     {
       "predictions": [
         {
           "month": "${month1}",
           "repayment": number,
           "debt": number,
-          "reasoning":  Detailed explanation of the predictions in Japanese: 1) Analysis of historical patterns, 2) Validation of predictions against historical data, 3) Justification for any significant changes from historical trends
+          "reasoning": "日本語で詳細に説明：1) 過去傾向の分析, 2) 統計値との検証, 3) 乖離がある場合の正当化"
         },
         {
           "month": "${month2}",
           "repayment": number,
           "debt": number,
-          "reasoning":  Detailed explanation of the predictions in Japanese: 1) Analysis of historical patterns, 2) Validation of predictions against historical data, 3) Justification for any significant changes from historical trends
+          "reasoning": "日本語で詳細に説明：1) 過去傾向の分析, 2) 統計値との検証, 3) 乖離がある場合の正当化"
         }
       ]
     }
 
     Prediction Validation Criteria:
+
     1. Historical Consistency:
-       - Compare with Weighted recent average 
-       - Identify seasonal patterns
-       - Check for outliers
+      - Compare with recalculated μ
+      - Compare with Weighted recent average
+      - Identify seasonal patterns
+
     2. Trend Analysis:
-       - Ensure predictions follow established trends
-       - Account for cyclical patterns
-       - Consider recent changes in behavior
+      - Follow established trends
+      - Account for cycles
+      - Consider recent behavior changes
+
     3. Reasonableness Check:
-       - Verify predictions are within realistic ranges
-       - Flag any extreme variations
-       - Adjust predictions that deviate significantly
+      - Ensure predictions are realistic
+      - Adjust extreme variations
+
     4. Moving Averages:
-      - Weighted recent average = (${last3Months.join(",")} months sum price × 0.5(weight) + ${past4To6Months.join(",")} months sum price × 0.3(weight) + Remaining months(${month3} month 〜 ${oldDate}) sum price × 0.2(weight)) / total weights (If the sum price is 0, absolutely exclude each weight from the total weights)
+      Weighted recent average =
+      (${last3Months.join(",")} months sum price × 0.5 +
+      ${past4To6Months.join(",")} months sum price × 0.3 +
+      Remaining months (${month3} month 〜 ${oldDate}) sum price × 0.2)
+      / total effective weights
+      (If any sum price is 0, exclude its weight from total)
+
     5. Standard Deviation:
-       σ = sqrt(Σ(x - μ)² / N)
-       where:
-       - x = individual values
-       - μ = mean
-       - N = number of values
-    
+      σ = sqrt(Σ(x - μ)² / N)
+
+      where:
+      - x = each month's total amount (monthly total AFTER outlier removal)
+      - μ = recalculated mean AFTER outlier removal
+      - N = number of remaining months
+
     6. Growth Rate:
-       ((Current - Previous) / Previous) × 100
-    
+      Growth rate must be calculated using the cleaned monthly totals (after outlier removal).
+
+      Growth Rate = ((Current Month Total - Previous Month Total) / Previous Month Total) × 100
+      (Use only cleaned monthly totals after outlier removal)
+
+      The growth trend observed in the last 3 months MUST be strongly reflected in the prediction.
+      If a consistent increasing or decreasing trend exists, predictions should follow this direction unless seasonal patterns justify otherwise.
+
     7. Outlier Detection:
-       - Calculate mean (μ) and standard deviation (σ)
-       - Flag values outside μ ± 2σ
-    
-    8. Prediction Validation:
-       - Compare with all calculated averages
-       - Calculate percentage deviation from each average
-       - Provide specific justification if deviation > 20%
+      ONLY based on monthly totals using μ ± 2σ
 
     Note:
-    - Do not hallusinate.
-    - Return ONLY valid JSON. Do not include any comments or explanations.
-    - Provide clear and concise explanations in Japanese for the predictions, including validation results.
-    - If predictions seem unusual, include detailed justification in the reasoning.`;
+      - Do not hallucinate.
+      - Return ONLY valid JSON.
+      - Provide explanations in Japanese inside reasoning.`;
     //     - Be absolutely sure to return the formula, including the intermediate formula for the weighted average, in the explanation of the rationale.
     try {
       let cost = 0;
